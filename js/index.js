@@ -9,6 +9,26 @@ function printerUrl(ip, endpoint) {
     return `http://${ip}${endpoint}`;
 }
 
+// Rewrite the host of a URL (absolute or relative-to-printer) to use a
+// different host. Used to point the camera feed at a separate device than
+// the printer (e.g. printer on 192.168.1.196, camera on 192.168.1.197).
+function rewriteHost(url, newHost) {
+    if (!newHost) return url;
+    newHost = newHost.replace(/^https?:\/\//, '');
+    try {
+        const parsed = new URL(url);
+        // Preserve protocol, path, query and fragment; only swap host[:port].
+        // The user-supplied host may include its own :port, which overrides.
+        const hostHasPort = /:\d+$/.test(newHost);
+        parsed.host = newHost;
+        if (!hostHasPort) parsed.port = '';
+        return parsed.toString();
+    } catch (e) {
+        // Relative URL (path) - build an absolute URL against the new host.
+        return `http://${newHost}${url.startsWith('/') ? '' : '/'}${url}`;
+    }
+}
+
 function isValidIP(input) {
     input = input.trim();
     if (!input) return false;
@@ -422,6 +442,17 @@ $(document).ready(function() {
         let ip = $('#printerIp').val();
         // Strip http:// or https:// when saving the IP
         ip = ip.replace(/^https?:\/\//, '');
+
+        // Optional camera IP override (for cameras hosted on a different device
+        // than the printer). If blank, the printer IP is used as the camera host.
+        let camIp = ($('#cameraIp').val() || '').trim().replace(/^https?:\/\//, '');
+        $('#cameraIpError').hide();
+        if (camIp && !isValidIP(camIp)) {
+            $('#cameraIpError').show();
+            return;
+        }
+        const cameraHost = camIp || ip;
+
         if (isValidIP(ip)) {
             console.log('Checking printer connection:', ip);
             
@@ -440,6 +471,7 @@ $(document).ready(function() {
                     
                     // Disable IP input and show disconnect button
                     $('#printerIp').prop('disabled', true);
+                    $('#cameraIp').prop('disabled', true);
                     $('#disconnectBtn').show();
                     
                     // Fetch camera list
@@ -466,6 +498,11 @@ $(document).ready(function() {
                                         streamUrl = cam.stream_url;
                                     } catch (e) {
                                         streamUrl = printerUrl(ip, cam.stream_url);
+                                    }
+                                    // If the user provided a separate camera IP, point the
+                                    // stream at that host instead of the printer.
+                                    if (camIp) {
+                                        streamUrl = rewriteHost(streamUrl, cameraHost);
                                     }
                                     const snapshotUrl = streamUrl.replace('?action=stream', '?action=snapshot');
                                     
@@ -642,6 +679,7 @@ $(document).ready(function() {
 
         // Enable IP input
         $('#printerIp').prop('disabled', false);
+        $('#cameraIp').prop('disabled', false);
         
         // Hide disconnect button
         $(this).hide();
