@@ -504,6 +504,11 @@ $(document).ready(function() {
                                     if (camIp) {
                                         streamUrl = rewriteHost(streamUrl, cameraHost);
                                     }
+                                    // Ensure the live feed URL uses ?action=stream. Some
+                                    // Moonraker configurations report the snapshot URL in
+                                    // cam.stream_url, which would otherwise leave the camera
+                                    // feed showing a single still image instead of a live stream.
+                                    streamUrl = streamUrl.replace('?action=snapshot', '?action=stream');
                                     const snapshotUrl = streamUrl.replace('?action=stream', '?action=snapshot');
                                     
                                     const cameraOption = `
