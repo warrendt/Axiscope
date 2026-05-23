@@ -455,16 +455,18 @@ $(document).ready(function() {
                                 $cameraList.empty();
                                 
                                 cams.forEach(function(cam) {
-                                    // Extract path from cam.stream_url (remove protocol and host if present)
-                                    let streamPath = cam.stream_url;
+                                    // If cam.stream_url is an absolute URL (e.g. a remote camera
+                                    // hosted on a different IP), use it as-is so we don't rewrite
+                                    // the host to the printer's IP. Otherwise treat it as a path
+                                    // relative to the printer and prepend the printer URL.
+                                    let streamUrl;
                                     try {
-                                        const url = new URL(cam.stream_url);
-                                        streamPath = url.pathname + url.search;
+                                        // new URL() throws for relative paths
+                                        new URL(cam.stream_url);
+                                        streamUrl = cam.stream_url;
                                     } catch (e) {
-                                        // If not a full URL, use as-is (already a path)
-                                        streamPath = cam.stream_url;
+                                        streamUrl = printerUrl(ip, cam.stream_url);
                                     }
-                                    const streamUrl = printerUrl(ip, streamPath);
                                     const snapshotUrl = streamUrl.replace('?action=stream', '?action=snapshot');
                                     
                                     const cameraOption = `
@@ -534,11 +536,13 @@ $(document).ready(function() {
         }
 
         const selectedIp = $('#printerIp').val();
-        const webcamPath = selectedUrl.split(selectedIp)[1];  // Extract the path part
-        
+
         // Update variables directly
         printerIp = selectedIp; // Update the global variable
-        WebcamPath = webcamPath;
+        // Store the resolved camera URL as-is. It may live on a different host
+        // than the printer (e.g. a remote camera), so we must not rebuild it
+        // from printerIp later.
+        WebcamPath = selectedUrl;
         
         // Reset flip button states first
         $('#flip-horizontal, #flip-vertical').removeClass('btn-primary').addClass('btn-secondary');
@@ -546,7 +550,7 @@ $(document).ready(function() {
         // Update UI and set flip states
         const $zoomImage = $("#zoom-image");
         $zoomImage
-            .attr("src", printerUrl(printerIp, WebcamPath))
+            .attr("src", selectedUrl)
             .data('flip-h', flipHorizontal)
             .data('flip-v', flipVertical);
             
