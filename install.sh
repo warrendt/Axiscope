@@ -3,7 +3,7 @@
 # Default values
 AXISCOPE_ENV="axiscope-env"
 INSTALL_DIR="$HOME/axiscope"
-REPO_URL="https://github.com/warrendt/Axiscope.git"
+REPO_URL="https://github.com/nic335/Axiscope.git"
 BRANCH="main"
 
 # Parse command line arguments
